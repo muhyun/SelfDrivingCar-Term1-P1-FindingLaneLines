@@ -2,7 +2,7 @@
 
 [![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
 
-### This Udacity Self-Driving Car NanoDegree project is to find lane lines on the road images using traditional computer vision methods such as edge detection and line detection. A well-known computer vision library, OpenCV, is used for implementation. This projet is detecting lane line from a road image, but also from a road video clip.
+This Udacity Self-Driving Car NanoDegree project is to find lane lines on the road images using traditional computer vision methods such as edge detection and line detection. A well-known computer vision library, OpenCV, is used for implementation. This projet is detecting lane line from a road image, but also from a road video clip.
 
 ---
 
@@ -131,16 +131,23 @@ Even though lanes are solid, lane lines might be partial which means that the la
 
 ## Potential **shortcomings** with this pipeline
 
-* Lanes outside of the predefined interest region
-* 
+This approach has potential shortcoming in several situatations.
 
-One potential shortcoming would be what would happen when ... 
+#### Lanes outside of the predefined interest region
 
-Another shortcoming could be ...
+A predefined region is used to mask out detected edges assuming lanes will be within that region. However, if the car is not in the middle of the left and right lane, either left or right lane could be outside of the region. In this case, only single lane will be detected. Also, if there is a sharp curve, detected lane might be too short.
 
+#### Erased but still visiable old lanes
+If there is a wall nearby the lane, the edge of the wall could be considered as an lane. 
+
+...
 
 ## Possible **improvements** to this pipeline
 
-A possible improvement would be to ...
+#### Adoptive interesting region modification
 
-Another potential improvement could be to ...
+...
+
+#### Reducing redundantly detected lanes
+
+...
