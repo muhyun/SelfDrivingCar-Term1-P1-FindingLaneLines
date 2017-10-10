@@ -1,56 +1,146 @@
 # **Finding Lane Lines on the Road** 
+
 [![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
 
-<img src="examples/laneLines_thirdPass.jpg" width="480" alt="Combined Image" />
+### This Udacity Self-Driving Car NanoDegree project is to find lane lines on the road images using traditional computer vision methods such as edge detection and line detection. A well-known computer vision library, OpenCV, is used for implementation. This projet is detecting lane line from a road image, but also from a road video clip.
 
-Overview
 ---
 
-When we drive, we use our eyes to decide where to go.  The lines on the road that show us where the lanes are act as our constant reference for where to steer the vehicle.  Naturally, one of the first things we would like to do in developing a self-driving car is to automatically detect lane lines using an algorithm.
+## Pipeline for finding lane lines on the road image
 
-In this project you will detect lane lines in images using Python and OpenCV.  OpenCV means "Open-Source Computer Vision", which is a package that has many useful tools for analyzing images.  
+![Original Road Image](./images/0-roadimage.jpg)
 
-To complete the project, two files will be submitted: a file containing project code and a file containing a brief write up explaining your solution. We have included template files to be used both for the [code](https://github.com/udacity/CarND-LaneLines-P1/blob/master/P1.ipynb) and the [writeup](https://github.com/udacity/CarND-LaneLines-P1/blob/master/writeup_template.md).The code file is called P1.ipynb and the writeup template is writeup_template.md 
+### Step 1. Transforming an RGB colored road image into gray scale
 
-To meet specifications in the project, take a look at the requirements in the [project rubric](https://review.udacity.com/#!/rubrics/322/view)
+The first step in the lane line detection pipeline is to transform the RGB color image into a gray scale image so that canny edge detection could be applied. For the image transform, cvtColor function of OpenCV is used.
+
+```
+cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+```
+
+The transformed image of the original road image is like th below:
+
+![Grayscale](./images/1-grayscale.jpg)
+
+### Step 2. Applying Gaussian smoothing
+
+Gaussian smoothing is applied in order to suppresse noise and spurious gradients by averaging. In this project, kernel size of 5 is used. 
+
+> Note: OpenCV's Canny Edge Detection function, Canny(), applies Gussian smoothing internally, but the kernel parameter is not chaneable in Canny() function. 
+
+````
+cv2.GaussianBlur(img, (kernel_size, kernel_size), 0)
+````
+
+Refer to [OpenCV GaussianBlue document](https://docs.opencv.org/2.4/modules/imgproc/doc/filtering.html?highlight=gaussianblur#gaussianblur) for the detail.
+
+![Smoothed](./images/2-smoothing.jpg)
+
+### Step 3. Detecting edges using Canny Edge Detection algorithm
+
+Canny edge detection algorithm is then applied. OpenCV provides this algorithm as a function, Canny(). Two threshold parameters are specified. 
+
+````
+cv2.Canny(img, low_threshold, high_threshold)
+````
+
+> **How are threshold parameters used?**
+> 
+> The algorithm will first detect strong edge (strong gradient) pixels above the high_threshold, and reject pixels below the low_threshold. Next, pixels with values between the low_threshold and high_threshold will be included as long as they are connected to strong edges.
 
 
-Creating a Great Writeup
+
+![Detected edges](./images/3-edges.jpg)
+
+### Step 4. Filtering out edges which are outside of an interested region
+
+As seen the above, it will detect all the edges of the image while we are only interested in edges of lanes. Assuming the camara is mounted in the vehicle, lanes within road images should be within a certain region. So, we can cut out all the other edges which are outside of the region. This is done in two steps;
+
+1. Creating an empty image, and coloring the defined region
+2. Applying bit-wise AND operation on the original image and the masking image created
+
+````python
+def region_of_interest(img, vertices):
+    """
+    Applies an image mask.
+    
+    Only keeps the region of the image defined by the polygon
+    formed from `vertices`. The rest of the image is set to black.
+    """
+    #defining a blank mask to start with
+    mask = np.zeros_like(img)   
+    
+    #defining a 3 channel or 1 channel color to fill the mask with depending on the input image
+    if len(img.shape) > 2:
+        channel_count = img.shape[2]  # i.e. 3 or 4 depending on your image
+        ignore_mask_color = (255,) * channel_count
+    else:
+        ignore_mask_color = 255
+        
+    #filling pixels inside the polygon defined by "vertices" with the fill color    
+    cv2.fillPoly(mask, vertices, ignore_mask_color)
+    
+    #returning the image only where mask pixels are nonzero
+    masked_image = cv2.bitwise_and(img, mask)
+    return masked_image
+````
+
+The below image is the result of this masking task.
+
+> Note: The chanllenge is how to define the masking region correctly; not too wide nor too narrow.
+
+![Masked edges](./images/4-masked.jpg)
+
+### Step 5. Detecting lines using Hough Transform altorithm
+
+The lines obtained upto the Step 4 are not all solid ones. The most left and right lanes are solid, but others in the middle are not. **Probabilistic Hough Transform** algorithm, *cv2.HoughLinesP()*, is then applied to connect the line segments.
+
+https://docs.opencv.org/2.4/modules/imgproc/doc/feature_detection.html#houghlinesp
+
+````python
+lines = cv2.HoughLinesP(img, rho, theta, threshold, np.array([]), minLineLength=min_line_len, maxLineGap=max_line_gap)
+````
+
+Parameters are;
+
+* image – 8-bit, single-channel binary source image. The image may be modified by the function.  
+* rho – Distance resolution of the accumulator in pixels.
+* theta – Angle resolution of the accumulator in radians.
+* threshold – Accumulator threshold parameter. Only those lines are returned that get enough votes (> threshold).
+* minLineLength – Minimum line length. Line segments shorter than that are rejected.
+* maxLineGap – Maximum allowed gap between points on the same line to link them.
+
+, and the result value is an output vector of lines. Each line is represented by a 4-element vector (x_1, y_1, x_2, y_2) , where (x_1,y_1) and (x_2, y_2) are the ending points of each detected line segment.
+
+> Refer to [Hough Line Transform](https://docs.opencv.org/2.4/doc/tutorials/imgproc/imgtrans/hough_lines/hough_lines.html?highlight=hough%20transform) for the algorithm description
+
+![Lines](./images/5-lines.jpg)
+
+### Step 6. Drawing left and right lane lines among ones found from the previous step
+
+Even though lanes are solid, lane lines might be partial which means that the lane line might end up in the middle. See the left lane line. This is an expected result from Hough Transform because there is no line segment of the left lane at the bottom. Another thing to be addresses is that lane are rectangles not a single line, which is also expected. To address these two, the final lane line drawing function does;
+
+1. to find the ending points of each lanes
+2. to calculate the slope of each so that the end point at the botoom of each lane could be calculated
+3. to draw a solid thick line for the left and right lane
+
+![Lane lines](./images/6-leftandright.jpg)
+
+
 ---
-For this project, a great writeup should provide a detailed response to the "Reflection" section of the [project rubric](https://review.udacity.com/#!/rubrics/322/view). There are three parts to the reflection:
 
-1. Describe the pipeline
+## Potential **shortcomings** with this pipeline
 
-2. Identify any shortcomings
+* Lanes outside of the predefined interest region
+* 
 
-3. Suggest possible improvements
+One potential shortcoming would be what would happen when ... 
 
-We encourage using images in your writeup to demonstrate how your pipeline works.  
-
-All that said, please be concise!  We're not looking for you to write a book here: just a brief description.
-
-You're not required to use markdown for your writeup.  If you use another method please just submit a pdf of your writeup. Here is a link to a [writeup template file](https://github.com/udacity/CarND-LaneLines-P1/blob/master/writeup_template.md). 
+Another shortcoming could be ...
 
 
-The Project
----
+## Possible **improvements** to this pipeline
 
-## If you have already installed the [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) you should be good to go!   If not, you should install the starter kit to get started on this project. ##
+A possible improvement would be to ...
 
-**Step 1:** Set up the [CarND Term1 Starter Kit](https://classroom.udacity.com/nanodegrees/nd013/parts/fbf77062-5703-404e-b60c-95b78b2f3f9e/modules/83ec35ee-1e02-48a5-bdb7-d244bd47c2dc/lessons/8c82408b-a217-4d09-b81d-1bda4c6380ef/concepts/4f1870e0-3849-43e4-b670-12e6f2d4b7a7) if you haven't already.
-
-**Step 2:** Open the code in a Jupyter Notebook
-
-You will complete the project code in a Jupyter notebook.  If you are unfamiliar with Jupyter Notebooks, check out <A HREF="https://www.packtpub.com/books/content/basics-jupyter-notebook-and-python" target="_blank">Cyrille Rossant's Basics of Jupyter Notebook and Python</A> to get started.
-
-Jupyter is an Ipython notebook where you can run blocks of code and see results interactively.  All the code for this project is contained in a Jupyter notebook. To start Jupyter in your browser, use terminal to navigate to your project directory and then run the following command at the terminal prompt (be sure you've activated your Python 3 carnd-term1 environment as described in the [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) installation instructions!):
-
-`> jupyter notebook`
-
-A browser window will appear showing the contents of the current directory.  Click on the file called "P1.ipynb".  Another browser window will appear displaying the notebook.  Follow the instructions in the notebook to complete the project.  
-
-**Step 3:** Complete the project and submit both the Ipython notebook and the project writeup
-
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
-
+Another potential improvement could be to ...
