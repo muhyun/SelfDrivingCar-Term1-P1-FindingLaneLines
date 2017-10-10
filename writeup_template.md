@@ -2,7 +2,7 @@
 
 [![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
 
-### This Udacity Self-Driving Car NanoDegree project is to find lane lines on the road images using traditional computer vision methods such as edge detection and line detection. A well-known computer vision library, OpenCV, is used for implementation. This projet is detecting lane line from a road image, but also from a road video clip.
+ This Udacity Self-Driving Car NanoDegree project is to find lane lines on the road images using traditional computer vision methods such as edge detection and line detection. A well-known computer vision library, OpenCV, is used for implementation. This projet is detecting lane line from a road image, but also from a road video clip.
 
 ---
 
