@@ -120,9 +120,10 @@ Parameters are;
 
 Even though lanes are solid, lane lines might be partial which means that the lane line might end up in the middle. See the left lane line. This is an expected result from Hough Transform because there is no line segment of the left lane at the bottom. Another thing to be addresses is that lane are rectangles not a single line, which is also expected. To address these two, the final lane line drawing function does;
 
-1. to find the ending points of each lanes
-2. to calculate the slope of each so that the end point at the botoom of each lane could be calculated
-3. to draw a solid thick line for the left and right lane
+1. to ignore line segments whose absolute slose is less than 0.5
+2. to find the ending points of each lanes (top and bottom point of left and right lane)
+3. to calculate the slope of each so that the end point at the botoom of each lane could be calculated
+4. to draw a solid thick line for the left and right lane
 
 ![Lane lines](./images/6-leftandright.jpg)
 
@@ -131,7 +132,7 @@ Even though lanes are solid, lane lines might be partial which means that the la
 
 ## Potential **shortcomings** with this pipeline
 
-This approach has potential shortcoming in several situatations.
+In order to fit this pipeline to the sample images and video clips, I modified parameters used within this pipeline, and applied rules to exclude line segments which I think are not part of lanes. So, this approach has potential shortcoming in several situatations.
 
 #### Lanes outside of the predefined interest region
 
@@ -140,14 +141,10 @@ A predefined region is used to mask out detected edges assuming lanes will be wi
 #### Erased but still visiable old lanes
 If there is a wall nearby the lane, the edge of the wall could be considered as an lane. 
 
-...
-
 ## Possible **improvements** to this pipeline
 
-#### Adoptive interesting region modification
+#### Adaptive interesting region modification
 
-...
+Adjusting the masking region depending on the number of lanes found could make this pipeline more robust rather than using the fixed and pre-defined region all the time. Also, the region can be modified to reflect the horizontal line.
 
-#### Reducing redundantly detected lanes
-
-...
+#### Applying deep learning technology to learn from data not to manually fit the model
